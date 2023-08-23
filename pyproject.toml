@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "text-to-speech"
+version = "0.1.0"
+description = "Using murf.ai and play.ht from AWS Lambda (POC)"
+authors = ["reikje <reik.schatz@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+chalice = "^1.29.0"
+requests = "^2.31.0"
+
+[tool.poetry.group.dev.dependencies]
+boto3 = "^1.28.32"
+pytest = "^7.4.0"
+ruff = "^0.0.285"
+pre-commit = "^3.3.3"
+
+[tool.ruff]
+select = ["ANN", "E", "F", "N", "PYI", "PLE", "Q", "RUF", "SIM", "T20"]
+ignore = ["E501"]
+exclude = [
+    "tests", "singleton.py"
+]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
