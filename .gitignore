@@ -228,7 +228,7 @@ backend/package/
 .terraform.*
 *.iml
 
-**/.chalice/deployments/
+.chalice/deployments/
 **/requirements.txt
 **/.terraform/
 .terraform.lock.hcl

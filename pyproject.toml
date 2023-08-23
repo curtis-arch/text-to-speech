@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.10"
 chalice = "^1.29.0"
 requests = "^2.31.0"
+dataclasses-json = "^0.5.7"
 
 [tool.poetry.group.dev.dependencies]
 boto3 = "^1.28.32"

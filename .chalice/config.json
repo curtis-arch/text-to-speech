@@ -15,7 +15,8 @@
       "environment_variables": {
         "STAGE": "dev",
         "REGION": "us-east-1",
-        "FEATURE_TOGGLES": "0"
+        "FEATURE_TOGGLES": "0",
+        "INPUT_BUCKET_NAME": ""
       }
     }
   }
