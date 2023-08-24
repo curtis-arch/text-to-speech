@@ -16,7 +16,8 @@
         "STAGE": "dev",
         "REGION": "us-east-1",
         "FEATURE_TOGGLES": "0",
-        "INPUT_BUCKET_NAME": ""
+        "INPUT_BUCKET_NAME": "",
+        "WEBHOOK_URL": ""
       }
     }
   }

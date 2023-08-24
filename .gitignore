@@ -233,4 +233,4 @@ backend/package/
 **/.terraform/
 .terraform.lock.hcl
 
-curl.txt
+tests/files/curl.txt
