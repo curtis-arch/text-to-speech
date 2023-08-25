@@ -29,6 +29,9 @@ using the AWS credentials mapping to the AWS Account you wish to use for this pr
 The project uses [AWS Chalice](https://aws.github.io/chalice/) as the framework. Chalice will take care of deploying and removing the
 AWS resources for the project (Lambda, API Gateway, IAM). Note that the S3 bucket must be created on the side.
 
+
+### Configuration
+
 Lets have a look at the config file, which can be found under `.chalice/config.json`.
 
 ```json
@@ -68,7 +71,31 @@ The following lines are interesting:
 | INPUT_BUCKET_NAME  | The name of the bucket, which will later contain the input .txt and .json files.       |
 | WEBHOOK_URL        | A URL that we will use to notify when speech has been synthesized or an error occured. |
 
+### Generating Speech from Text
 
+The project comes with an integration for multiple text-to-speech engines. To generate a speech file:
+- upload the conversion configuration to S3 with a .json extension (step 1)
+- upload a second file in the same S3 location but with the .txt extension (step 2)
+
+The conversion configuration allows for the following parameters:
+
+```json
+{
+  "token": "",
+  "murf_config": {
+    "voice_id": "en-UK-hazel",
+    "style": "Conversational",
+    "rate": 0,
+    "pitch": 0,
+    "sample_rate": 24000,
+    "format": "MP3",
+    "channel_type": "STEREO"
+  }
+}
+```
+
+A valid `token` (or API Key) for the desired engine must always be specified. 
+Possible values for the murf.ai configuration are documented [here](https://murf.ai/api/docs/api-reference/generate-with-key).
 
 
 ## Deployments
