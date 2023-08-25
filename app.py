@@ -55,7 +55,6 @@ def on_text_input_file(event: S3Event) -> Dict[str, str]:
     return {"result": "success"}
 
 
-
 def _invoke_murfai(text_content: str, config: MurfAIConfig, api_key: str) -> SynthesizeSpeechResponse:
     url = "https://api.murf.ai/v1/speech/generate-with-key"
     headers = {
@@ -160,7 +159,7 @@ def _read_file_content(bucket_name: str, object_key: str) -> str:
     except UnicodeDecodeError:
         raise ReportableError(
             message="Unable to decode using UTF-8 charset.", context={"bucket": bucket_name, "key": object_key})
-    except BotoCoreError:
+    except Exception:
         logger.exception("Unable to fetch from S3.")
         raise ReportableError(
             message="Something went wrong fetching file from S3.", context={"bucket": bucket_name, "key": object_key})

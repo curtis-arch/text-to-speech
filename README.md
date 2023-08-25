@@ -132,3 +132,22 @@ Now that we have the `requirements.txt` file, lets make a deployment. Replace PR
 ```bash
 poetry run chalice deploy --profile PROFILE_NAME --stage dev
 ```
+
+## Basic Testing
+
+The folder `tests/samples` will always contain some dummy test files, that can be sent to S3 for basic testing.
+**Important**: Make sure to set a proper `token` in the JSON file first.
+
+As always, send the `.json` file first:
+
+```bash
+curl -X PUT --upload-file tests/samples/test1.json "https://mwt-testing-reik.s3.amazonaws.com/inputz/test1.json"
+```
+
+**Important**: Send all files into the `inputz` subfolder!
+
+Now you can send the `.txt` file.
+
+```bash
+curl -X PUT --upload-file tests/samples/test1.txt "https://mwt-testing-reik.s3.amazonaws.com/inputz/test1.txt"
+```
