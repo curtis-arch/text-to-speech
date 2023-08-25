@@ -1,11 +1,11 @@
 {
   "version": "2.0",
-  "app_name": "text-to-speech",
+  "app_name": "mwt-reik-testing",
   "api_gateway_endpoint_type": "REGIONAL",
   "lambda_memory_size": 2048,
   "lambda_timeout": 300,
   "environment_variables": {
-    "APP_NAME": "text-to-speech"
+    "APP_NAME": "mwt-reik-testing"
   },
   "stages": {
     "dev": {
