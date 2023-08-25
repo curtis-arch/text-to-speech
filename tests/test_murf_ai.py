@@ -19,7 +19,7 @@ webhook_url = "https://blackhole.com"
 
 @fixture
 def test_client() -> Client:
-    with Client(app.app) as client:
+    with Client(app.app, stage_name="unit_tests") as client:
         yield client
 
 

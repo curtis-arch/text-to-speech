@@ -16,7 +16,7 @@
         "STAGE": "dev",
         "FEATURE_TOGGLES": "0",
         "INPUT_BUCKET_NAME": "mwt-testing-reik",
-        "WEBHOOK_URL": ""
+        "WEBHOOK_URL": "https://reik-text2speech.free.beeceptor.com"
       }
     }
   }

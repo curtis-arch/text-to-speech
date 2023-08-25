@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from json import JSONDecodeError
 from typing import Dict, Any, Union
 
 import boto3
@@ -54,6 +55,7 @@ def on_text_input_file(event: S3Event) -> Dict[str, str]:
     return {"result": "success"}
 
 
+
 def _invoke_murfai(text_content: str, config: MurfAIConfig, api_key: str) -> SynthesizeSpeechResponse:
     url = "https://api.murf.ai/v1/speech/generate-with-key"
     headers = {
@@ -66,18 +68,19 @@ def _invoke_murfai(text_content: str, config: MurfAIConfig, api_key: str) -> Syn
 
     logger.info(f"About to POST to {url}. data: {data}")
     try:
-        response = requests.post(url, data=data, headers=headers)
+        response = requests.post(url, json=data, headers=headers)
         response.raise_for_status()
     except HTTPError as err:
         logger.exception("Failed to generate speech using murf.ai.")
         if err.response is not None:
-            if err.response.text:
+            logger.info(err.response.text)
+            try:
                 error_response = json.loads(err.response.text)
                 raise ReportableError(
                     message="Something went wrong generating speech using murf.ai.",
                     context={**data, "error_message": error_response.get("errorMessage"), "error_status": error_response.get("errorCode")}
                 )
-            else:
+            except JSONDecodeError:
                 raise ReportableError(
                     message="Something went wrong generating speech using murf.ai.",
                     context={**data, "error_status": err.response.status_code}
