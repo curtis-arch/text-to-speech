@@ -14,9 +14,8 @@
       "iam_policy_file": "app-policy.json",
       "environment_variables": {
         "STAGE": "dev",
-        "REGION": "us-east-1",
         "FEATURE_TOGGLES": "0",
-        "INPUT_BUCKET_NAME": "",
+        "INPUT_BUCKET_NAME": "mwt-testing-reik",
         "WEBHOOK_URL": ""
       }
     }

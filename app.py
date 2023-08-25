@@ -19,12 +19,11 @@ logger.setLevel(logging.INFO)
 
 app = Chalice(app_name=os.environ.get("APP_NAME"))
 
-REGION = os.environ.get("REGION")
 STAGE = os.environ.get("STAGE", "dev")
 
 _S3_CLIENT = None
 
-logger.info(f"Using region: {REGION}, stage: {STAGE}")
+logger.info(f"Running in stage: {STAGE}")
 
 
 class ReportableError(Exception):
