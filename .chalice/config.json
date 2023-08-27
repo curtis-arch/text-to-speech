@@ -1,11 +1,11 @@
 {
   "version": "2.0",
-  "app_name": "mwt-reik-testing",
+  "app_name": "text2speech",
   "api_gateway_endpoint_type": "REGIONAL",
   "lambda_memory_size": 2048,
   "lambda_timeout": 300,
   "environment_variables": {
-    "APP_NAME": "mwt-reik-testing"
+    "APP_NAME": "text2speech"
   },
   "stages": {
     "dev": {
@@ -15,7 +15,7 @@
       "environment_variables": {
         "STAGE": "dev",
         "FEATURE_TOGGLES": "0",
-        "INPUT_BUCKET_NAME": "mwt-testing-reik",
+        "INPUT_BUCKET_NAME": "input-text-to-speech",
         "WEBHOOK_URL": "https://tlvoice.free.beeceptor.com"
       }
     }
