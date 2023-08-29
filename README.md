@@ -165,7 +165,7 @@ The folder `tests/samples` will always contain some dummy test files, that can b
 As always, send the `.json` file first:
 
 ```bash
-curl -X PUT --upload-file tests/samples/test1.json "https://input-text-to-speech.s3.amazonaws.com/inputz/test1.json"
+curl -X PUT --upload-file tests/samples/play/play1.json "https://quotient-text2speech-test-input.s3.amazonaws.com/inputz/play1.json"
 ```
 
 **Important**: Send all files into the `inputz` subfolder!
@@ -173,5 +173,5 @@ curl -X PUT --upload-file tests/samples/test1.json "https://input-text-to-speech
 Now you can send the `.txt` file.
 
 ```bash
-curl -X PUT --upload-file tests/samples/test1.txt "https://input-text-to-speech.s3.amazonaws.com/inputz/test1.txt"
+curl -X PUT --upload-file tests/samples/play/play1.txt "https://quotient-text2speech-test-input.s3.amazonaws.com/inputz/play1.txt"
 ```
