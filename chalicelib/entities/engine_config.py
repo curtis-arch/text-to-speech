@@ -19,7 +19,7 @@ class MurfAIConfig:
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
 class PlayHTConfig:
-    voice: str = field(default="en-US-JennyNeural")
+    voice: str = field(default="Matthew")
     global_speed: Optional[int] = field(
         default=None, metadata=config(field_name="globalSpeed", exclude=lambda value: value is None))
     trim_silence: Optional[bool] = field(

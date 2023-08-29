@@ -1,0 +1,42 @@
+{
+  "resources": [
+    {
+      "name": "on_text_input_file_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_text_input_file",
+      "role_name": "text2speech-test-on_text_input_file"
+    },
+    {
+      "name": "on_text_input_file",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_text_input_file"
+    },
+    {
+      "name": "on_text_input_file-s3event",
+      "resource_type": "s3_event",
+      "bucket": "quotient-text2speech-test-input",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_text_input_file"
+    },
+    {
+      "name": "on_conversion_job_message_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_conversion_job_message",
+      "role_name": "text2speech-test-on_conversion_job_message"
+    },
+    {
+      "name": "on_conversion_job_message",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_conversion_job_message"
+    },
+    {
+      "name": "on_conversion_job_message-sqs-event-source",
+      "resource_type": "sqs_event",
+      "queue_arn": "arn:aws:sqs:us-east-1:815805748464:quotient-text2speech-test-status",
+      "event_uuid": "d62cac8f-d62c-46a8-b05e-0e2ebc09f4ab",
+      "queue": "quotient-text2speech-test-status",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_conversion_job_message"
+    }
+  ],
+  "schema_version": "2.0",
+  "backend": "api"
+}

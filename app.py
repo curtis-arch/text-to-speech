@@ -21,7 +21,7 @@ logger.setLevel(logging.INFO)
 
 app = Chalice(app_name=os.environ.get("APP_NAME"))
 
-STAGE = os.environ.get("STAGE", "dev")
+STAGE = os.environ.get("STAGE", "test")
 QUEUE_NAME = os.environ.get("STATUS_POLLER_QUEUE_URL").split("/")[-1]
 
 _S3_CLIENT = None

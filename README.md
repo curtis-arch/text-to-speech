@@ -39,18 +39,26 @@ Lets have a look at the config file, which can be found under `.chalice/config.j
   "version": "2.0",
   "app_name": "...",
   "api_gateway_endpoint_type": "REGIONAL",
-  "lambda_memory_size": 2048,
-  "lambda_timeout": 300,
   "environment_variables": {
     "APP_NAME": "..."
   },
   "stages": {
-    "dev": {
-      "api_gateway_stage": "dev",
+    "test": {
+      "api_gateway_stage": "test",
       "autogen_policy": false,
       "iam_policy_file": "app-policy.json",
+      "lambda_functions": {
+        "on_conversion_job_message": {
+          "lambda_memory_size": 512,
+          "lambda_timeout": 15
+        },
+        "on_text_input_file": {
+          "lambda_memory_size": 1024,
+          "lambda_timeout": 300
+        }
+      },
       "environment_variables": {
-        "STAGE": "dev",
+        "STAGE": "test",
         "FEATURE_TOGGLES": "0",
         "INPUT_BUCKET_NAME": "",
         "WEBHOOK_URL": ""
@@ -64,8 +72,8 @@ The following lines are interesting:
 
 | Config Value            | Description                                                                             |
 |-------------------------|-----------------------------------------------------------------------------------------|
-| lambda_memory_size      | Sets the memory in MB for the Lambda function.                                          |
-| lambda_timeout          | Sets a timeout in seconds after which the Lambda function will stop running.            |
+| lambda_memory_size      | Sets the memory in MB for each Lambda function.                                         |
+| lambda_timeout          | Sets a timeout in seconds after which each Lambda function will stop running.           |
 | iam_policy_file         | Denotes a file in the same directory with an IAM policy to be used for the function.    |
 | FEATURE_TOGGLES         | A way to turn features on and off.                                                      |
 | INPUT_BUCKET_NAME       | The name of the bucket, which will later contain the input .txt and .json files.        |
@@ -82,8 +90,7 @@ The conversion configuration allows for the following parameters:
 
 ```json
 {
-  "api_key": "",
-  "user_id": "",
+  "api_key": "foo",
   "murf_config": {
     "voice_id": "en-UK-hazel",
     "style": "Conversational",
@@ -98,6 +105,21 @@ The conversion configuration allows for the following parameters:
 
 A valid `api_key` for the desired engine must always be specified. Some engines might require additional attributes, e.g. `user_id`. 
 Possible values for the murf.ai configuration are documented [here](https://murf.ai/api/docs/api-reference/generate-with-key).
+
+Another engine that is supported is play.ht. Here is an example:
+
+```json
+{
+  "api_key": "foo",
+  "user_id": "bar",
+  "play_config": {
+    "voice": "en-UK-hazel",
+    "global_speed": 110,
+    "trim_silence": true,
+    "narration_style": "angry"
+  }
+}
+```
 
 
 ## Deployments
@@ -132,7 +154,7 @@ poetry export -f requirements.txt --output requirements.txt --without-hashes
 Now that we have the `requirements.txt` file, lets make a deployment. Replace PROFILE_NAME with the name of the profile from your AWS CLI setup earlier.
 
 ```bash
-poetry run chalice deploy --profile PROFILE_NAME --stage dev
+poetry run chalice deploy --profile PROFILE_NAME --stage test
 ```
 
 ## Basic Testing

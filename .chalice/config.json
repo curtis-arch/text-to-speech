@@ -2,22 +2,30 @@
   "version": "2.0",
   "app_name": "text2speech",
   "api_gateway_endpoint_type": "REGIONAL",
-  "lambda_memory_size": 2048,
-  "lambda_timeout": 300,
   "environment_variables": {
     "APP_NAME": "text2speech"
   },
   "stages": {
-    "dev": {
-      "api_gateway_stage": "dev",
+    "test": {
+      "api_gateway_stage": "test",
       "autogen_policy": false,
       "iam_policy_file": "app-policy.json",
+      "lambda_functions": {
+        "on_conversion_job_message": {
+          "lambda_memory_size": 512,
+          "lambda_timeout": 15
+        },
+        "on_text_input_file": {
+          "lambda_memory_size": 1024,
+          "lambda_timeout": 300
+        }
+      },
       "environment_variables": {
-        "STAGE": "dev",
+        "STAGE": "test",
         "FEATURE_TOGGLES": "0",
-        "INPUT_BUCKET_NAME": "input-text-to-speech",
-        "STATUS_POLLER_QUEUE_URL": "",
-        "WEBHOOK_URL": "https://tlvoice.free.beeceptor.com"
+        "INPUT_BUCKET_NAME": "quotient-text2speech-test-input",
+        "STATUS_POLLER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-status",
+        "WEBHOOK_URL": "https://reik-text2speech.free.beeceptor.com"
       }
     }
   }
