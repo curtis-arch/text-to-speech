@@ -62,14 +62,15 @@ Lets have a look at the config file, which can be found under `.chalice/config.j
 
 The following lines are interesting:
 
-| Config Value       | Description                                                                            |
-|--------------------|----------------------------------------------------------------------------------------|
-| lambda_memory_size | Sets the memory in MB for the Lambda function.                                         |
-| lambda_timeout     | Sets a timeout in seconds after which the Lambda function will stop running.           |
-| iam_policy_file    | Denotes a file in the same directory with an IAM policy to be used for the function.   |
-| FEATURE_TOGGLES    | A way to turn features on and off.                                                     |
-| INPUT_BUCKET_NAME  | The name of the bucket, which will later contain the input .txt and .json files.       |
-| WEBHOOK_URL        | A URL that we will use to notify when speech has been synthesized or an error occured. |
+| Config Value            | Description                                                                             |
+|-------------------------|-----------------------------------------------------------------------------------------|
+| lambda_memory_size      | Sets the memory in MB for the Lambda function.                                          |
+| lambda_timeout          | Sets a timeout in seconds after which the Lambda function will stop running.            |
+| iam_policy_file         | Denotes a file in the same directory with an IAM policy to be used for the function.    |
+| FEATURE_TOGGLES         | A way to turn features on and off.                                                      |
+| INPUT_BUCKET_NAME       | The name of the bucket, which will later contain the input .txt and .json files.        |
+| STATUS_POLLER_QUEUE_URL | The URL to an SQS queue which will be used for polling the status of a conversion job.  |
+| WEBHOOK_URL             | A URL that we will use to notify when speech has been synthesized or an error occurred. |
 
 ### Generating Speech from Text
 
@@ -81,7 +82,8 @@ The conversion configuration allows for the following parameters:
 
 ```json
 {
-  "token": "",
+  "api_key": "",
+  "user_id": "",
   "murf_config": {
     "voice_id": "en-UK-hazel",
     "style": "Conversational",
@@ -94,7 +96,7 @@ The conversion configuration allows for the following parameters:
 }
 ```
 
-A valid `token` (or API Key) for the desired engine must always be specified. 
+A valid `api_key` for the desired engine must always be specified. Some engines might require additional attributes, e.g. `user_id`. 
 Possible values for the murf.ai configuration are documented [here](https://murf.ai/api/docs/api-reference/generate-with-key).
 
 
@@ -136,7 +138,7 @@ poetry run chalice deploy --profile PROFILE_NAME --stage dev
 ## Basic Testing
 
 The folder `tests/samples` will always contain some dummy test files, that can be sent to S3 for basic testing.
-**Important**: Make sure to set a proper `token` in the JSON file first.
+**Important**: Make sure to set a proper `api_key` in the JSON file first.
 
 As always, send the `.json` file first:
 

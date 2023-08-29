@@ -9,22 +9,26 @@ from chalice.test import Client
 from pytest import fixture
 from requests_mock import Mocker
 
-import app
 from chalicelib.entities.engine_config import ConversionConfig, MurfAIConfig
 from chalicelib.entities.murf_ai import SynthesizeSpeechResponse
 
 bucket_name = "test_bucket"
 webhook_url = "https://blackhole.com"
+queue_url = "https://sqs.us-east-1.amazonaws.com/sampleQueue"
 
 
 @fixture
 def test_client() -> Client:
+    os.environ["STATUS_POLLER_QUEUE_URL"] = queue_url
+
+    import app
     with Client(app.app, stage_name="unit_tests") as client:
         yield client
 
 
 @fixture
 def s3_stub() -> Stubber:
+    import app
     client = app.get_s3_client()
     stubbed_client = Stubber(client)
     with stubbed_client:
@@ -36,7 +40,7 @@ def test_success(monkeypatch, requests_mock: Mocker, test_client: Client, s3_stu
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
 
     text_object_key = "path/sub/john.txt"
-    engine_config = ConversionConfig(token="abc123", murf_config=MurfAIConfig())
+    engine_config = ConversionConfig(api_key="abc123", murf_config=MurfAIConfig())
 
     synthesize_speech_response = SynthesizeSpeechResponse.from_dict(response_synth_speech)
     _setup_stubs(
@@ -61,7 +65,7 @@ def test_500(monkeypatch, requests_mock: Mocker, test_client: Client, s3_stub: S
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
 
     text_object_key = "path/sub/john.txt"
-    engine_config = ConversionConfig(token="abc123", murf_config=MurfAIConfig())
+    engine_config = ConversionConfig(api_key="abc123", murf_config=MurfAIConfig())
 
     _setup_stubs(
         stubbed_client=s3_stub, text_object_key=text_object_key, engine_config=engine_config
@@ -71,7 +75,7 @@ def test_500(monkeypatch, requests_mock: Mocker, test_client: Client, s3_stub: S
     event = test_client.events.generate_s3_event(bucket=bucket_name, key=text_object_key)
     response = test_client.lambda_.invoke('on_text_input_file', event)
 
-    assert response.payload == {'result': 'success'}
+    assert response.payload == {'result': 'failure'}
 
     s3_stub.assert_no_pending_responses()
 
@@ -91,7 +95,7 @@ def test_400(monkeypatch, requests_mock: Mocker, test_client: Client, s3_stub: S
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
 
     text_object_key = "path/sub/john.txt"
-    engine_config = ConversionConfig(token="abc123", murf_config=MurfAIConfig())
+    engine_config = ConversionConfig(api_key="abc123", murf_config=MurfAIConfig())
 
     _setup_stubs(
         stubbed_client=s3_stub, text_object_key=text_object_key, engine_config=engine_config
@@ -108,7 +112,7 @@ def test_400(monkeypatch, requests_mock: Mocker, test_client: Client, s3_stub: S
     event = test_client.events.generate_s3_event(bucket=bucket_name, key=text_object_key)
     response = test_client.lambda_.invoke('on_text_input_file', event)
 
-    assert response.payload == {'result': 'success'}
+    assert response.payload == {'result': 'failure'}
 
     s3_stub.assert_no_pending_responses()
 
@@ -172,35 +176,5 @@ def _setup_stubs(stubbed_client: Stubber, text_object_key: str, engine_config: C
 
 response_synth_speech = {
     "audioFile": "https://murf.ai/user-upload/one-day-temp/1834b12f-d2e2-4a72-8097-c3fedb19056c.mp3",
-    "encodedAudio": None,
-    "audioLengthInSeconds": 1.694417,
-    "wordDurations": [
-        {
-            "word": "a",
-            "startMs": 0,
-            "endMs": 35
-        },
-        {
-            "word": "quick",
-            "startMs": 35,
-            "endMs": 392
-        },
-        {
-            "word": "brown",
-            "startMs": 392,
-            "endMs": 845
-        },
-        {
-            "word": "fox",
-            "startMs": 845,
-            "endMs": 1404
-        },
-        {
-            "word": " ",
-            "startMs": 1404,
-            "endMs": 1694
-        }
-    ],
-    "consumedCharacterCount": 17,
-    "remainingCharacterCount": 9983
+    "audioLengthInSeconds": 1.694417
 }

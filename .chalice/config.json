@@ -16,6 +16,7 @@
         "STAGE": "dev",
         "FEATURE_TOGGLES": "0",
         "INPUT_BUCKET_NAME": "input-text-to-speech",
+        "STATUS_POLLER_QUEUE_URL": "",
         "WEBHOOK_URL": "https://tlvoice.free.beeceptor.com"
       }
     }

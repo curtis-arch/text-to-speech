@@ -15,13 +15,13 @@ logger.setLevel(logging.INFO)
 
 @pytest.mark.skip(reason="requires python3.3")
 def test_murf():
-    token = "api_ca9f5035-b4ae-4cd6-a304-0ac934743bc3"
+    api_key = "api_ca9f5035-b4ae-4cd6-a304-0ac934743bc3"
     config = MurfAIConfig(voice_id="en-UK-hazel")
 
     url = "https://api.murf.ai/v1/speech/generate-with-key"
     headers = {
         "Content-Type": "application/json",
-        "api-key": token,
+        "api-key": api_key,
         "Accept": "application/json",
     }
 

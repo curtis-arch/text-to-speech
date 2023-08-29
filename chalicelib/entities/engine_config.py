@@ -18,6 +18,20 @@ class MurfAIConfig:
 
 @dataclass_json(undefined=Undefined.EXCLUDE)
 @dataclass
+class PlayHTConfig:
+    voice: str = field(default="en-US-JennyNeural")
+    global_speed: Optional[int] = field(
+        default=None, metadata=config(field_name="globalSpeed", exclude=lambda value: value is None))
+    trim_silence: Optional[bool] = field(
+        default=None, metadata=config(field_name="trimSilence", exclude=lambda value: value is None))
+    narration_style: Optional[str] = field(
+        default=None, metadata=config(field_name="narrationStyle", exclude=lambda value: value is None))
+
+
+@dataclass_json(undefined=Undefined.EXCLUDE)
+@dataclass
 class ConversionConfig:
-    token: str
-    murf_config: Optional[MurfAIConfig]
+    api_key: str
+    user_id: Optional[str] = field(default=None)
+    murf_config: Optional[MurfAIConfig] = field(default=None)
+    play_config: Optional[PlayHTConfig] = field(default=None)
