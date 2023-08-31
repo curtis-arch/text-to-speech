@@ -16,7 +16,8 @@ from chalicelib.entities.play_ht import ConversionJobCreatedResponse
 
 bucket_name = "another_test_bucket"
 webhook_url = "https://www.blackhole.com"
-queue_url = "https://sqs.us-east-1.amazonaws.com/sampleQueue"
+status_queue_url = "https://sqs.us-east-1.amazonaws.com/statusQueue"
+download_queue_url = "https://sqs.us-east-1.amazonaws.com/downloadQueue"
 
 
 @dataclass_json
@@ -28,7 +29,8 @@ class AwsStubs:
 
 @fixture
 def test_client() -> Client:
-    os.environ["STATUS_POLLER_QUEUE_URL"] = queue_url
+    os.environ["STATUS_POLLER_QUEUE_URL"] = status_queue_url
+    os.environ["DOWNLOADER_QUEUE_URL"] = download_queue_url
 
     import app
     with Client(app.app, stage_name="unit_tests") as client:
@@ -48,7 +50,7 @@ def aws_stubs() -> AwsStubs:
 def test_create_success(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
-    monkeypatch.setenv("STATUS_POLLER_QUEUE_URL", queue_url)
+    monkeypatch.setenv("STATUS_POLLER_QUEUE_URL", status_queue_url)
 
     text_object_key = "path/sub/john.txt"
     engine_config = ConversionConfig(api_key="abc123", play_config=PlayHTConfig())
@@ -74,7 +76,7 @@ def test_create_success(monkeypatch, requests_mock: Mocker, test_client: Client,
 def test_400(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
-    monkeypatch.setenv("STATUS_POLLER_QUEUE_URL", queue_url)
+    monkeypatch.setenv("STATUS_POLLER_QUEUE_URL", status_queue_url)
 
     text_object_key = "path/sub/john.txt"
     engine_config = ConversionConfig(api_key="abc123", play_config=PlayHTConfig())
@@ -97,7 +99,7 @@ def test_400(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs:
     assert webhook_request.json() == json.dumps({
         "message": "Error while creating conversion job using play.ht",
         "context": {
-            "voice": "en-US-JennyNeural",
+            "voice": "Matthew",
             "content": ["A quick brown fox"],
             "error_message": "Something failed",
             "error_status": "400"
@@ -108,7 +110,7 @@ def test_400(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs:
 def test_403(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
-    monkeypatch.setenv("STATUS_POLLER_QUEUE_URL", queue_url)
+    monkeypatch.setenv("STATUS_POLLER_QUEUE_URL", status_queue_url)
 
     text_object_key = "path/sub/john.txt"
     engine_config = ConversionConfig(api_key="abc123", play_config=PlayHTConfig())
@@ -131,7 +133,7 @@ def test_403(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs:
     assert webhook_request.json() == json.dumps({
         "message": "The provided play.ht api key's plan does not have access to the requested resource.",
         "context": {
-            "voice": "en-US-JennyNeural",
+            "voice": "Matthew",
             "content": ["A quick brown fox"],
             "error_message": "",
             "error_status": "403"
@@ -187,7 +189,7 @@ def _setup_stubs(aws_stubs: AwsStubs, text_object_key: str, engine_config: Conve
     aws_stubs.sqs.add_response(
         method='send_message',
         expected_params={
-            'QueueUrl': queue_url,
+            'QueueUrl': status_queue_url,
             'MessageBody': json.dumps(
                 {
                     "job_id": "t123",

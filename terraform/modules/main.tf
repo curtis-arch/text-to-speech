@@ -36,13 +36,24 @@ resource "aws_s3_bucket_policy" "default" {
 EOF
 }
 
-resource "aws_sqs_queue" "default" {
+resource "aws_sqs_queue" "status" {
   name                       = "${local.resource_prefix}-status"
   visibility_timeout_seconds = 15
   message_retention_seconds  = 3600
   redrive_policy             = jsonencode({
     deadLetterTargetArn      = aws_sqs_queue.dlq.arn
     maxReceiveCount          = 20
+  })
+
+  tags                       = var.tags
+}
+
+resource "aws_sqs_queue" "download" {
+  name                       = "${local.resource_prefix}-download"
+  message_retention_seconds  = 600
+  redrive_policy             = jsonencode({
+    deadLetterTargetArn      = aws_sqs_queue.dlq.arn
+    maxReceiveCount          = 5
   })
 
   tags                       = var.tags

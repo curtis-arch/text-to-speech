@@ -1,5 +1,5 @@
 from dataclasses import field, dataclass
-from typing import Optional, List
+from typing import Optional
 
 from dataclasses_json import dataclass_json, Undefined, config
 

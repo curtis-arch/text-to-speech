@@ -12,7 +12,7 @@ from chalice.app import S3Event, SQSEvent
 from requests import HTTPError
 
 from chalicelib.entities.engine_config import ConversionConfig, MurfAIConfig, PlayHTConfig
-from chalicelib.entities.messages import ConversionJob, ConversionJobConfig
+from chalicelib.entities.messages import ConversionJob, ConversionJobConfig, DownloadTask
 from chalicelib.entities.murf_ai import SynthesizeSpeechResponse
 from chalicelib.entities.play_ht import ConversionJobCreatedResponse, ConversionJobStatusResponse
 
@@ -22,7 +22,8 @@ logger.setLevel(logging.INFO)
 app = Chalice(app_name=os.environ.get("APP_NAME"))
 
 STAGE = os.environ.get("STAGE", "test")
-QUEUE_NAME = os.environ.get("STATUS_POLLER_QUEUE_URL").split("/")[-1]
+STATUS_QUEUE_NAME = os.environ.get("STATUS_POLLER_QUEUE_URL").split("/")[-1]
+DOWNLOADER_QUEUE_NAME = os.environ.get("DOWNLOADER_QUEUE_URL").split("/")[-1]
 
 _S3_CLIENT = None
 _SQS_CLIENT = None
@@ -100,21 +101,21 @@ def on_text_input_file(event: S3Event) -> Dict[str, str]:
     return {"result": "failure"}
 
 
-@app.on_sqs_message(queue=QUEUE_NAME, batch_size=1)
+@app.on_sqs_message(queue=STATUS_QUEUE_NAME, batch_size=1)
 def on_conversion_job_message(event: SQSEvent) -> None:
     logger.info(f"Received event: {event.to_dict()}")
-    for record in event:
-        logger.info(f"Converting record ({record.body}) into ConversionJob.")
-        try:
-            job = ConversionJob.from_json(record.body)
-        except Exception:
-            logger.exception("Incoming SQS message payload does not map to a ConversionJob.")
-            raise ReportableError(
-                message="Unable to parse SQS message.",
-                context={"body": record.body}
-            )
-        else:
+    try:
+        for record in event:
+            logger.info(f"Converting record ({record.body}) into ConversionJob.")
             try:
+                job = ConversionJob.from_json(record.body)
+            except Exception:
+                logger.exception("Incoming SQS message payload does not map to a ConversionJob.")
+                raise ReportableError(
+                    message="Unable to parse SQS message.",
+                    context={"body": record.body}
+                )
+            else:
                 config = _conversion_config(bucket=job.config.bucket, config_object_key=job.config.config_object_key)
                 logger.info(f"Found the following conversion config: {config.to_dict()}")
 
@@ -144,8 +145,122 @@ def on_conversion_job_message(event: SQSEvent) -> None:
                     logger.info(f"Conversion job {job.job_id} has not finished.")
                     raise JobNotFinishedError(message=f"Conversion job {job.job_id} not done.")
 
-            except ReportableError as e:
-                _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+    except ReportableError as e:
+        _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+
+
+@app.on_sqs_message(queue=DOWNLOADER_QUEUE_NAME, batch_size=1)
+def on_download_message(event: SQSEvent) -> None:
+    logger.info(f"Received event: {event.to_dict()}")
+    try:
+        for record in event:
+            logger.info(f"Converting record ({record.body}) into DownloadTask.")
+            try:
+                task = DownloadTask.from_json(record.body)
+            except Exception:
+                logger.exception("Incoming SQS message payload does not map to a DownloadTask.")
+                raise ReportableError(
+                    message="Unable to parse SQS message.",
+                    context={"body": record.body}
+                )
+            else:
+                s3_client = get_s3_client()
+                _download_speech_file(s3_client=s3_client, task=task)
+
+                _report_download_success(
+                    url=os.environ["WEBHOOK_URL"],
+                    download_bucket=task.destination_bucket,
+                    download_key=task.destination_key
+                )
+    except ReportableError as e:
+        _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+
+
+def _download_speech_file(s3_client: BaseClient, task: DownloadTask) -> None:
+    """
+    Downloads the file from the URL wrapped in the given DownloadTask straight into S3. Utilizes the streaming and
+    multipart uploads for proper handling of very large files.
+    :param s3_client: a client to be used with S3
+    :param task: a DownloadTask
+    :return: None
+    """
+    bucket_name = task.destination_bucket
+    object_key = task.destination_key
+    file_url = task.source.audio_file
+
+    logger.info(f"About to store download in S3. Bucket: {bucket_name}, Key: {object_key}, Url: {file_url}")
+
+    buffer_size = 1024 * 1024  # 1 MB
+    buffer = bytearray(buffer_size)
+
+    try:
+        logger.info("Initialising new multipart upload")
+        upload_id = s3_client.create_multipart_upload(Bucket=bucket_name, Key=object_key)["UploadId"]
+    except Exception:
+        logger.exception("Unable to initialise multipart upload.")
+        raise ReportableError(
+            message="Unable to initialise multipart upload for converted speech file.",
+            context=task.to_dict()
+        )
+
+    logger.info(f"Using upload_id: {upload_id} and buffer size: {buffer_size}")
+    parts = list()
+
+    try:
+        logger.info(f"About to GET {file_url}")
+        with requests.get(file_url, stream=True) as response:
+            response.raise_for_status()
+            logger.info("Starting to stream response ..")
+
+            for count, chunk in enumerate(response.iter_content(chunk_size=buffer_size)):
+                if chunk:
+                    buffer[:len(chunk)] = chunk
+
+                    part_number = len(parts) + 1
+                    logger.info(f"Uploading part {part_number}")
+
+                    upload_response = s3_client.upload_part(
+                        Bucket=bucket_name,
+                        Key=object_key,
+                        PartNumber=part_number,
+                        UploadId=upload_id,
+                        Body=bytes(buffer[:len(chunk)])
+                    )
+
+                    parts.append({
+                        "PartNumber": part_number,
+                        "ETag": upload_response["ETag"]
+                    })
+    except HTTPError:
+        logger.exception(f"Failed fetching file to download under {file_url}")
+        raise ReportableError(
+            message="Unable to fetch file for downloading.",
+            context=task.to_dict()
+        )
+    except Exception:
+        logger.exception("Unable to finish multipart upload. Aborting.")
+        s3_client.abort_multipart_upload(
+            Bucket=bucket_name, Key=object_key, UploadId=upload_id
+        )
+        raise ReportableError(
+            message="Unable to finish multipart S3 upload and store converted speech file.",
+            context=task.to_dict()
+        )
+    else:
+        try:
+            logger.info(f"Completing multipart upload after {len(parts)} part(s) ..")
+            s3_client.complete_multipart_upload(
+                Bucket=bucket_name,
+                Key=object_key,
+                UploadId=upload_id,
+                MultipartUpload={"Parts": parts}
+            )
+        except Exception as e:
+            logger.exception("Unable to complete multipart upload.")
+            raise ReportableError(
+                message="Unable to complete multipart upload for converted speech file.",
+                context=task.to_dict()
+            )
 
 
 def _invoke_playht_status(transcription_id: str, api_key: str, user_id: str) -> ConversionJobStatusResponse:
@@ -298,6 +413,22 @@ def _report_success(url: str, response: SynthesizeSpeechResponse) -> None:
         response.raise_for_status()
     except HTTPError:
         logger.exception("Failed to notify webhook about generated speech file.")
+    else:
+        logger.info(f"Response: {response.text}")
+
+
+def _report_download_success(url: str, download_bucket: str, download_key: str) -> None:
+    headers = {
+        "Content-Type": "application/json"
+    }
+
+    data = json.dumps({"bucket": download_bucket, "key": download_key})
+    logger.info(f"About to POST to {url}. data: {data}")
+    try:
+        response = requests.post(url, json=data, headers=headers)
+        response.raise_for_status()
+    except HTTPError:
+        logger.exception("Failed to notify webhook about downloaded speech file.")
     else:
         logger.info(f"Response: {response.text}")
 

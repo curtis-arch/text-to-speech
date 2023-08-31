@@ -14,12 +14,14 @@ from chalicelib.entities.murf_ai import SynthesizeSpeechResponse
 
 bucket_name = "test_bucket"
 webhook_url = "https://blackhole.com"
-queue_url = "https://sqs.us-east-1.amazonaws.com/sampleQueue"
+status_queue_url = "https://sqs.us-east-1.amazonaws.com/statusQueue"
+download_queue_url = "https://sqs.us-east-1.amazonaws.com/downloadQueue"
 
 
 @fixture
 def test_client() -> Client:
-    os.environ["STATUS_POLLER_QUEUE_URL"] = queue_url
+    os.environ["STATUS_POLLER_QUEUE_URL"] = status_queue_url
+    os.environ["DOWNLOADER_QUEUE_URL"] = download_queue_url
 
     import app
     with Client(app.app, stage_name="unit_tests") as client:

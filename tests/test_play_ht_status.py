@@ -18,7 +18,8 @@ from chalicelib.entities.play_ht import ConversionJobStatusResponse
 
 bucket_name = "another_test_bucket"
 webhook_url = "https://www.blackhole.com"
-queue_url = "https://sqs.us-east-1.amazonaws.com/sampleQueue"
+status_queue_url = "https://sqs.us-east-1.amazonaws.com/statusQueue"
+download_queue_url = "https://sqs.us-east-1.amazonaws.com/downloadQueue"
 
 
 @dataclass_json
@@ -29,7 +30,8 @@ class AwsStubs:
 
 @fixture
 def test_client() -> Client:
-    os.environ["STATUS_POLLER_QUEUE_URL"] = queue_url
+    os.environ["STATUS_POLLER_QUEUE_URL"] = status_queue_url
+    os.environ["DOWNLOADER_QUEUE_URL"] = download_queue_url
 
     import app
     with Client(app.app, stage_name="unit_tests") as client:
@@ -60,7 +62,7 @@ def test_status_success(monkeypatch, requests_mock: Mocker, test_client: Client,
         job_id=transcription_id, config=ConversionJobConfig(bucket=bucket_name, config_object_key=config_object_key)
     )
     event = test_client.events.generate_sqs_event(
-        queue_name=queue_url.split("/")[-1], message_bodies=[conversion_job.to_json()]
+        queue_name=status_queue_url.split("/")[-1], message_bodies=[conversion_job.to_json()]
     )
     test_client.lambda_.invoke('on_conversion_job_message', event)
 
@@ -89,7 +91,7 @@ def test_status_conversion_error(monkeypatch, requests_mock: Mocker, test_client
         job_id=transcription_id, config=ConversionJobConfig(bucket=bucket_name, config_object_key=config_object_key)
     )
     event = test_client.events.generate_sqs_event(
-        queue_name=queue_url.split("/")[-1], message_bodies=[conversion_job.to_json()]
+        queue_name=status_queue_url.split("/")[-1], message_bodies=[conversion_job.to_json()]
     )
     test_client.lambda_.invoke('on_conversion_job_message', event)
 
@@ -118,7 +120,7 @@ def test_status_conversion_incomplete(monkeypatch, requests_mock: Mocker, test_c
         job_id=transcription_id, config=ConversionJobConfig(bucket=bucket_name, config_object_key=config_object_key)
     )
     event = test_client.events.generate_sqs_event(
-        queue_name=queue_url.split("/")[-1], message_bodies=[conversion_job.to_json()]
+        queue_name=status_queue_url.split("/")[-1], message_bodies=[conversion_job.to_json()]
     )
 
     from app import JobNotFinishedError
