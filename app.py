@@ -3,6 +3,7 @@ import logging
 import os
 from json import JSONDecodeError
 from typing import Dict, Any, Union
+from urllib.parse import urlparse
 
 import boto3
 import requests
@@ -46,6 +47,12 @@ class JobNotFinishedError(Exception):
 
 @app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".txt")
 def on_text_input_file(event: S3Event) -> Dict[str, str]:
+    """
+    AWS Lambda function which gets triggered by an S3 event when a .txt file is put into a bucket. The function will
+    look up an additional config file in the same location and start the flow for generating a speech file.
+    :param event: the S3 event
+    :return: Dict
+    """
     logger.info(f"Received event: {event.to_dict()}")
 
     bucket = event.bucket
@@ -64,7 +71,14 @@ def on_text_input_file(event: S3Event) -> Dict[str, str]:
                 api_key=config.api_key
             )
 
-            _report_success(url=os.environ["WEBHOOK_URL"], response=synthesize_speech_response)
+            logger.info(f"Extracting filename from speech file url: {synthesize_speech_response.audio_file}")
+            destination_filename = os.path.basename(urlparse(synthesize_speech_response.audio_file).path)
+            download_task = DownloadTask(
+                destination_bucket=event.bucket,
+                destination_key=destination_filename,
+                source=synthesize_speech_response
+            )
+            _notify_downloader(queue_url=os.environ["DOWNLOADER_QUEUE_URL"], task=download_task)
 
             return {"result": "success"}
 
@@ -103,6 +117,13 @@ def on_text_input_file(event: S3Event) -> Dict[str, str]:
 
 @app.on_sqs_message(queue=STATUS_QUEUE_NAME, batch_size=1)
 def on_conversion_job_message(event: SQSEvent) -> None:
+    """
+    AWS Lambda function which is triggered by an SQS message denoting a speech conversion job. The function will check
+    if the job has been finished in which case it will send a message to the downloader. Otherwise, it will end with an
+    exception, forcing the same message to be redelivered and processed a few seconds later.
+    :param event: a SQSEvent
+    :return: None
+    """
     logger.info(f"Received event: {event.to_dict()}")
     try:
         for record in event:
@@ -140,7 +161,15 @@ def on_conversion_job_message(event: SQSEvent) -> None:
                             audio_file=job_status_response.audio_url,
                             audio_length_seconds=job_status_response.audio_duration_seconds
                         )
-                        _report_success(url=os.environ["WEBHOOK_URL"], response=response)
+
+                        logger.info(f"Extracting filename from speech file url: {response.audio_file}")
+                        destination_filename = os.path.basename(urlparse(response.audio_file).path)
+                        download_task = DownloadTask(
+                            destination_bucket=job.config.bucket,
+                            destination_key=destination_filename,
+                            source=response
+                        )
+                        _notify_downloader(queue_url=os.environ["DOWNLOADER_QUEUE_URL"], task=download_task)
                 else:
                     logger.info(f"Conversion job {job.job_id} has not finished.")
                     raise JobNotFinishedError(message=f"Conversion job {job.job_id} not done.")
@@ -151,6 +180,13 @@ def on_conversion_job_message(event: SQSEvent) -> None:
 
 @app.on_sqs_message(queue=DOWNLOADER_QUEUE_NAME, batch_size=1)
 def on_download_message(event: SQSEvent) -> None:
+    """
+    AWS Lambda function which is triggered by an SQS message denoting a download task. The function will attempt to
+    download the file based on the instructions in the specified event. Finally, it will send a notification on the
+    configured webhook.
+    :param event: a SQSEvent
+    :return: None
+    """
     logger.info(f"Received event: {event.to_dict()}")
     try:
         for record in event:
@@ -401,20 +437,20 @@ def _notify_status_poller(queue_url: str, payload: ConversionJob) -> None:
         )
 
 
-def _report_success(url: str, response: SynthesizeSpeechResponse) -> None:
-    headers = {
-        "Content-Type": "application/json"
-    }
-
-    data = response.to_json()
-    logger.info(f"About to POST to {url}. data: {data}")
+def _notify_downloader(queue_url: str, task: DownloadTask) -> None:
+    sqs = get_sqs_client()
+    logger.info(f"About to send message to SQS at {queue_url}")
     try:
-        response = requests.post(url, json=data, headers=headers)
-        response.raise_for_status()
-    except HTTPError:
-        logger.exception("Failed to notify webhook about generated speech file.")
-    else:
-        logger.info(f"Response: {response.text}")
+        sqs.send_message(
+            QueueUrl=queue_url,
+            MessageBody=task.to_json()
+        )
+    except Exception:
+        logger.exception(f"Unable to notify SQS about download task. (url: {queue_url}, message: {task})")
+        raise ReportableError(
+            message="Unable to notify SQS about download task.",
+            context={"message": task.to_dict()}
+        )
 
 
 def _report_download_success(url: str, download_bucket: str, download_key: str) -> None:
