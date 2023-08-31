@@ -15,6 +15,10 @@
           "lambda_memory_size": 512,
           "lambda_timeout": 15
         },
+        "on_download_message": {
+          "lambda_memory_size": 512,
+          "lambda_timeout": 30
+        },
         "on_text_input_file": {
           "lambda_memory_size": 1024,
           "lambda_timeout": 300
@@ -26,7 +30,7 @@
         "INPUT_BUCKET_NAME": "quotient-text2speech-test-input",
         "STATUS_POLLER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-status",
         "DOWNLOADER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-download",
-        "WEBHOOK_URL": "https://reik-text2speech.free.beeceptor.com"
+        "WEBHOOK_URL": "https://tlvoice.free.beeceptor.com"
       }
     }
   }
