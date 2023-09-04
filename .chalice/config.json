@@ -27,7 +27,10 @@
       "environment_variables": {
         "STAGE": "test",
         "FEATURE_TOGGLES": "0",
+        "SECRETS_MANAGER_KEY_NAME": "quotient-text2speech-test",
         "INPUT_BUCKET_NAME": "quotient-text2speech-test-input",
+        "SERVICE_BASE_URL": "",
+        "CLOUD_CONVERT_API_URL": "",
         "STATUS_POLLER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-status",
         "DOWNLOADER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-download",
         "WEBHOOK_URL": "https://tlvoice.free.beeceptor.com"

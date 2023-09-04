@@ -8,14 +8,17 @@ from urllib.parse import urlparse
 import boto3
 import requests
 from botocore.client import BaseClient
+from botocore.exceptions import ClientError
 from chalice import Chalice
-from chalice.app import S3Event, SQSEvent
+from chalice.app import S3Event, SQSEvent, Response
 from requests import HTTPError
 
 from chalicelib.entities.engine_config import ConversionConfig, MurfAIConfig, PlayHTConfig
 from chalicelib.entities.messages import ConversionJob, ConversionJobConfig, DownloadTask
 from chalicelib.entities.murf_ai import SynthesizeSpeechResponse
 from chalicelib.entities.play_ht import ConversionJobCreatedResponse, ConversionJobStatusResponse
+from chalicelib.entities.secrets import Secrets
+from chalicelib.utils.request_templates import cloud_convert_create_webhook, cloud_convert_create_job
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -25,7 +28,9 @@ app = Chalice(app_name=os.environ.get("APP_NAME"))
 STAGE = os.environ.get("STAGE", "test")
 STATUS_QUEUE_NAME = os.environ.get("STATUS_POLLER_QUEUE_URL").split("/")[-1]
 DOWNLOADER_QUEUE_NAME = os.environ.get("DOWNLOADER_QUEUE_URL").split("/")[-1]
+CLOUD_CONVERT_WEBHOOK_PATH = "/v1/webhooks/cloud_convert"
 
+_SSM_CLIENT = None
 _S3_CLIENT = None
 _SQS_CLIENT = None
 
@@ -43,6 +48,37 @@ class JobNotFinishedError(Exception):
     def __init__(self: "JobNotFinishedError", message: str) -> None:
         self.message = message
         super().__init__(self.message)
+
+
+@app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".mp4")
+def on_video_input_file(event: S3Event) -> Dict[str, str]:
+    """
+    AWS Lambda function which gets triggered by the S3 event that a .mp4 file has been put into a bucket. The function
+    will call a third party API to initiate a task that separates the audio track from the video file. The task will
+    run asynchronously and notify another Lambda function when it completes.
+    :param event: the S3 event
+    :return: Dict
+    """
+    logger.info(f"Received event: {event.to_dict()}")
+
+    try:
+        secrets = _read_secrets()
+        service_url = os.environ.get("SERVICE_BASE_URL") or "http://localhost"
+        _invoke_cloud_convert_ensure_webhook(service_url=service_url, secrets=secrets)
+
+        job_id = _invoke_cloud_convert_create_job(source_bucket=event.bucket, source_video_file=event.key, secrets=secrets)
+        logger.info(f"Created cloud convert job {job_id}")
+
+        return {"result": "success"}
+    except ReportableError as e:
+        _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+
+    return {"result": "failure"}
+
+
+@app.route(CLOUD_CONVERT_WEBHOOK_PATH, methods=["POST"])
+def cloud_convert_job_finished() -> Response:
+    pass
 
 
 @app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".txt")
@@ -291,7 +327,7 @@ def _download_speech_file(s3_client: BaseClient, task: DownloadTask) -> None:
                 UploadId=upload_id,
                 MultipartUpload={"Parts": parts}
             )
-        except Exception as e:
+        except Exception:
             logger.exception("Unable to complete multipart upload.")
             raise ReportableError(
                 message="Unable to complete multipart upload for converted speech file.",
@@ -421,6 +457,89 @@ def _invoke_murfai(text_content: str, config: MurfAIConfig, api_key: str) -> Syn
             )
 
 
+def _invoke_cloud_convert_ensure_webhook(service_url: str, secrets: Secrets) -> None:
+    webhooks_url = f"{os.environ['CLOUD_CONVERT_API_URL']}/v2/webhooks"
+    headers = {
+        "AUTHORIZATION": f"Bearer {secrets.cloud_conversion_api_key}",
+    }
+
+    logger.info(f"About to GET to {webhooks_url}")
+    try:
+        response = requests.get(url=webhooks_url, headers=headers)
+        response.raise_for_status()
+    except HTTPError:
+        logger.exception("Failed to list cloud convert webhooks.")
+        raise ReportableError(
+            message="Unable to list webhooks in cloud convert",
+            context={"url": webhooks_url}
+        )
+    else:
+        logger.info(f"Response: {response.text}")
+        try:
+            webhooks = response.json().get("data", [])
+            logger.info(f"Looking for existing cloud convert webhook in: {webhooks}")
+
+            def cloud_convert_webhook(webhook_def: Dict[str, Any]) -> bool:
+                return webhook_def.get("url", "").endswith(CLOUD_CONVERT_WEBHOOK_PATH)
+
+            existing_webhook = next(filter(cloud_convert_webhook, webhooks), None)
+            if existing_webhook:
+                logger.info("Cloud convert webhook exists.")
+                return None
+        except Exception:
+            logger.exception("Something failed checking if cloud convert webhook exists.")
+            raise ReportableError(
+                message="Unable to parse conversion job created response from play.ht",
+                context={"response": response.text}
+            )
+
+        logger.info("Cloud convert webhook not found. Creating.")
+
+        headers = {
+            "AUTHORIZATION": f"Bearer {secrets.cloud_conversion_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        data = cloud_convert_create_webhook(url=service_url + CLOUD_CONVERT_WEBHOOK_PATH)
+
+        logger.info(f"About to POST to {webhooks_url}, data: {data}")
+
+        try:
+            response = requests.post(url=webhooks_url, json=data, headers=headers)
+            response.raise_for_status()
+        except HTTPError:
+            logger.exception("Failed to create cloud convert webhook.")
+            raise ReportableError(
+                message="Failed to create cloud convert webhook.",
+                context={"data": data}
+            )
+
+
+def _invoke_cloud_convert_create_job(source_bucket: str, source_video_file: str, secrets: Secrets) -> str:
+    jobs_url = f"{os.environ['CLOUD_CONVERT_API_URL']}/v2/jobs"
+    headers = {
+        "AUTHORIZATION": f"Bearer {secrets.cloud_conversion_api_key}",
+        "Content-Type": "application/json",
+    }
+
+    data = cloud_convert_create_job(url=f"https://{source_bucket}.s3.amazonaws.com/{source_video_file}")
+
+    logger.info(f"About to POST to {jobs_url}")
+    try:
+        response = requests.post(url=jobs_url, json=data, headers=headers)
+        response.raise_for_status()
+    except HTTPError:
+        logger.exception("Failed to create cloud convert job.")
+        raise ReportableError(
+            message="Failed to start converting input using cloud convert.",
+            context={"data": data}
+        )
+    else:
+        logger.info(f"Response: {response.text}")
+        response_data = response.json().get("data", {})
+        return response_data.get("id", "undefined")
+
+
 def _notify_status_poller(queue_url: str, payload: ConversionJob) -> None:
     sqs = get_sqs_client()
     logger.info(f"About to send message to SQS at {queue_url}")
@@ -514,6 +633,40 @@ def _read_file_content(bucket_name: str, object_key: str) -> str:
         logger.exception("Unable to fetch from S3.")
         raise ReportableError(
             message="Something went wrong fetching file from S3.", context={"bucket": bucket_name, "key": object_key})
+
+
+def _read_secrets() -> Secrets:
+    client = get_ssm_client()
+
+    key_name = f'/aws/reference/secretsmanager/{os.environ.get("SECRETS_MANAGER_KEY_NAME", "undefined")}'
+    logger.info(f"Getting Secrets from SSM parameter named '{key_name}'")
+
+    try:
+        parameter = client.get_parameter(Name=key_name, WithDecryption=True)
+        secrets_json = parameter.get("Parameter", {}).get("Value")
+    except ClientError as e:
+        logger.exception(
+            "Unable to get SSM parameter: %s. %s"
+            % (key_name, e.response.get("Error", {}).get("Message"))
+        )
+        raise ReportableError(
+            message="Something went wrong fetching SSM config.", context={"parameter": key_name})
+
+    try:
+        return Secrets.from_json(secrets_json)
+    except Exception:
+        logger.exception("Supplied json string does not map to a Secrets.")
+        raise ReportableError(
+            message="Unable to parse secrets config.",
+            context={"parameter": key_name}
+        )
+
+
+def get_ssm_client() -> BaseClient:
+    global _SSM_CLIENT
+    if _SSM_CLIENT is None:
+        _SSM_CLIENT = boto3.client("ssm")
+    return _SSM_CLIENT
 
 
 def get_s3_client() -> BaseClient:

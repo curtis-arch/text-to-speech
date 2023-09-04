@@ -64,3 +64,23 @@ resource "aws_sqs_queue" "dlq" {
 
   tags = var.tags
 }
+
+resource "aws_secretsmanager_secret" "default" {
+  name = local.resource_prefix
+  description = "Contains secret values for the ${var.project} project."
+
+  tags = var.tags
+}
+
+resource "aws_secretsmanager_secret_version" "default" {
+  secret_id = aws_secretsmanager_secret.default.id
+  secret_string = jsonencode({
+    cloudConversionApiKey = "-- change me --"
+  })
+
+  lifecycle {
+    ignore_changes = [
+      secret_string,
+    ]
+  }
+}

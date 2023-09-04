@@ -15,6 +15,16 @@
       "Effect": "Allow",
       "Action": "sqs:*",
       "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ssm:*",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "secretsmanager:*",
+      "Resource": "*"
     }
   ]
 }
