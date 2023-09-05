@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union
 
 
 def cloud_convert_create_job(url: str) -> Dict[str, Dict[str, Dict[str, Union[str, List[str]]]]]:
@@ -8,16 +8,29 @@ def cloud_convert_create_job(url: str) -> Dict[str, Dict[str, Dict[str, Union[st
                 "operation": "import/url",
                 "url": url
             },
-            "extract_audio": {
+            "split_audio": {
                 "operation": "convert",
                 "input": [
                     "import_source_from_url"
                 ],
                 "output_format": "mp3"
             },
-            "export_artifacts": {
+            "split_video": {
+                "operation": "convert",
+                "input": [
+                    "import_source_from_url"
+                ],
+                "output_format": "mp4",
+                "engine": "ffmpeg",
+                "audio_codec": "none"
+            },
+            "export_audio_artifact": {
                 "operation": "export/url",
-                "input": "extract_audio"
+                "input": "split_audio"
+            },
+            "export_video_artifact": {
+                "operation": "export/url",
+                "input": "split_video"
             }
         }
     }

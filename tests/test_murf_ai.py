@@ -60,7 +60,7 @@ def test_success(monkeypatch, requests_mock: Mocker, test_client: Client, aws_st
         aws_stubs=aws_stubs, text_object_key=text_object_key, engine_config=engine_config,
         task=DownloadTask(
             destination_bucket=bucket_name, destination_key="1834b12f-d2e2-4a72-8097-c3fedb19056c.mp3",
-            source=synthesize_speech_response
+            speech_synthesized_response=synthesize_speech_response
         )
     )
     _setup_mock_success(mocker=requests_mock, response=synthesize_speech_response)

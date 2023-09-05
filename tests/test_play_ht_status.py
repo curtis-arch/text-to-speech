@@ -62,7 +62,7 @@ def test_status_success(monkeypatch, requests_mock: Mocker, test_client: Client,
         aws_stubs=aws_stubs, config_object_key=config_object_key, engine_config=engine_config,
         task=DownloadTask(
             destination_bucket=bucket_name, destination_key="output.mp3",
-            source=SynthesizeSpeechResponse(
+            speech_synthesized_response=SynthesizeSpeechResponse(
                 audio_file=response_job_status.get("audioUrl"),
                 audio_length_seconds=response_job_status.get("audioDuration"),
             )

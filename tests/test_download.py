@@ -50,7 +50,7 @@ def test_download_success(monkeypatch, requests_mock: Mocker, test_client: Clien
     task = DownloadTask(
         destination_bucket=bucket_name,
         destination_key="out.mp3",
-        source=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
+        speech_synthesized_response=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
     )
 
     _setup_stubs_success(aws_stubs=aws_stubs, download_task=task)
@@ -77,7 +77,7 @@ def test_source_download_failed(monkeypatch, requests_mock: Mocker, test_client:
     task = DownloadTask(
         destination_bucket=bucket_name,
         destination_key="out.mp3",
-        source=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
+        speech_synthesized_response=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
     )
 
     _setup_stubs_success(aws_stubs=aws_stubs, download_task=task)
@@ -103,7 +103,7 @@ def test_create_multipart_failed(monkeypatch, requests_mock: Mocker, test_client
     task = DownloadTask(
         destination_bucket=bucket_name,
         destination_key="out.mp3",
-        source=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
+        speech_synthesized_response=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
     )
 
     _setup_stubs_create_multipart_upload_error(aws_stubs=aws_stubs, download_task=task)
@@ -131,7 +131,7 @@ def test_upload_part_failed(monkeypatch, requests_mock: Mocker, test_client: Cli
     task = DownloadTask(
         destination_bucket=bucket_name,
         destination_key="out.mp3",
-        source=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
+        speech_synthesized_response=SynthesizeSpeechResponse(audio_file="https://download.com/sample.mp3")
     )
 
     _setup_stubs_upload_part_failed(aws_stubs=aws_stubs, download_task=task)
@@ -157,12 +157,12 @@ def _setup_mock_success(mocker: Mocker, download_task: DownloadTask) -> None:
     pwd = os.path.dirname(os.path.realpath(__file__))
     with open(os.path.join(pwd, "sample.mp3"), 'rb') as f:
         binary_content = f.read()
-    mocker.get(download_task.source.audio_file, content=binary_content)
+    mocker.get(download_task.speech_synthesized_response.audio_file, content=binary_content)
 
 
 def _setup_mock_error(mocker: Mocker, download_task: DownloadTask) -> None:
     mocker.post(webhook_url, json={})
-    mocker.get(download_task.source.audio_file, status_code=404)
+    mocker.get(download_task.speech_synthesized_response.audio_file, status_code=404)
 
 
 def _setup_stubs_success(aws_stubs: AwsStubs, download_task: DownloadTask) -> None:

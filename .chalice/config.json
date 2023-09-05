@@ -29,8 +29,8 @@
         "FEATURE_TOGGLES": "0",
         "SECRETS_MANAGER_KEY_NAME": "quotient-text2speech-test",
         "INPUT_BUCKET_NAME": "quotient-text2speech-test-input",
-        "SERVICE_BASE_URL": "",
-        "CLOUD_CONVERT_API_URL": "",
+        "SERVICE_BASE_URL": "https://qe3cydxoei.execute-api.us-east-1.amazonaws.com",
+        "CLOUD_CONVERT_API_URL": "https://api.sandbox.cloudconvert.com",
         "STATUS_POLLER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-status",
         "DOWNLOADER_QUEUE_URL": "https://sqs.us-east-1.amazonaws.com/815805748464/quotient-text2speech-test-download",
         "WEBHOOK_URL": "https://tlvoice.free.beeceptor.com"

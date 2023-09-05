@@ -1,6 +1,23 @@
 {
   "resources": [
     {
+      "name": "on_video_input_file_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_video_input_file",
+      "role_name": "text2speech-test-on_video_input_file"
+    },
+    {
+      "name": "on_video_input_file",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_video_input_file"
+    },
+    {
+      "name": "on_video_input_file-s3event",
+      "resource_type": "s3_event",
+      "bucket": "quotient-text2speech-test-input",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_video_input_file"
+    },
+    {
       "name": "on_text_input_file_role",
       "resource_type": "iam_role",
       "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_text_input_file",
@@ -54,6 +71,23 @@
       "event_uuid": "f0d4d8b5-d37e-408d-b7ae-f8ff7fddff1b",
       "queue": "quotient-text2speech-test-download",
       "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_download_message"
+    },
+    {
+      "name": "api_handler_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-api_handler",
+      "role_name": "text2speech-test-api_handler"
+    },
+    {
+      "name": "api_handler",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test"
+    },
+    {
+      "name": "rest_api",
+      "resource_type": "rest_api",
+      "rest_api_id": "qe3cydxoei",
+      "rest_api_url": "https://qe3cydxoei.execute-api.us-east-1.amazonaws.com/test/"
     }
   ],
   "schema_version": "2.0",

@@ -114,7 +114,7 @@ def test_list_webhooks_failed(monkeypatch, requests_mock: Mocker, test_client: C
     webhook_request = requests_mock.request_history[1]
     assert webhook_request.json() == json.dumps({
         "message": "Unable to list webhooks in cloud convert",
-        "context": {"url": "https://api.sandbox.cloudconvert.com/v2/webhooks"}
+        "context": {"url": "https://api.sandbox.cloudconvert.com/v2/users/me/webhooks"}
     })
 
 
@@ -171,28 +171,28 @@ def test_create_job_failed(monkeypatch, requests_mock: Mocker, test_client: Clie
 def _setup_mock_success(mocker: Mocker, webhooks_get_response: Optional[List[Dict[str, str]]] = None) -> None:
     mocker.post(webhook_url, json={})
     if webhooks_get_response is None:
-        mocker.get(f'https://api.sandbox.cloudconvert.com/v2/webhooks', json={"data": []})
+        mocker.get(f'https://api.sandbox.cloudconvert.com/v2/users/me/webhooks', json={"data": []})
         mocker.post(f'https://api.sandbox.cloudconvert.com/v2/webhooks', json={})
     else:
-        mocker.get(f'https://api.sandbox.cloudconvert.com/v2/webhooks', json={"data": webhooks_get_response})
+        mocker.get(f'https://api.sandbox.cloudconvert.com/v2/users/me/webhooks', json={"data": webhooks_get_response})
 
     mocker.post(f'https://api.sandbox.cloudconvert.com/v2/jobs', json={"data": {"id": "newJobId"}})
 
 
 def _setup_mock_error_list_webhooks(mocker: Mocker) -> None:
     mocker.post(webhook_url, json={})
-    mocker.get(f'https://api.sandbox.cloudconvert.com/v2/webhooks', status_code=400)
+    mocker.get(f'https://api.sandbox.cloudconvert.com/v2/users/me/webhooks', status_code=400)
 
 
 def _setup_mock_error_create_webhook(mocker: Mocker) -> None:
     mocker.post(webhook_url, json={})
-    mocker.get(f'https://api.sandbox.cloudconvert.com/v2/webhooks', json={"data": []})
+    mocker.get(f'https://api.sandbox.cloudconvert.com/v2/users/me/webhooks', json={"data": []})
     mocker.post(f'https://api.sandbox.cloudconvert.com/v2/webhooks', status_code=400)
 
 
 def _setup_mock_error_create_job(mocker: Mocker) -> None:
     mocker.post(webhook_url, json={})
-    mocker.get(f'https://api.sandbox.cloudconvert.com/v2/webhooks', json={"data": []})
+    mocker.get(f'https://api.sandbox.cloudconvert.com/v2/users/me/webhooks', json={"data": []})
     mocker.post(f'https://api.sandbox.cloudconvert.com/v2/webhooks', json={})
     mocker.post(f'https://api.sandbox.cloudconvert.com/v2/jobs', status_code=500)
 

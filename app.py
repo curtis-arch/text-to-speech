@@ -10,15 +10,17 @@ import requests
 from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 from chalice import Chalice
-from chalice.app import S3Event, SQSEvent, Response
+from chalice.app import S3Event, SQSEvent, Response, BadRequestError
 from requests import HTTPError
 
+from chalicelib.entities.cloud_convert import JobStatusEvent
 from chalicelib.entities.engine_config import ConversionConfig, MurfAIConfig, PlayHTConfig
 from chalicelib.entities.messages import ConversionJob, ConversionJobConfig, DownloadTask
 from chalicelib.entities.murf_ai import SynthesizeSpeechResponse
 from chalicelib.entities.play_ht import ConversionJobCreatedResponse, ConversionJobStatusResponse
 from chalicelib.entities.secrets import Secrets
 from chalicelib.utils.request_templates import cloud_convert_create_webhook, cloud_convert_create_job
+from chalicelib.utils.responder import Responder
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -78,7 +80,47 @@ def on_video_input_file(event: S3Event) -> Dict[str, str]:
 
 @app.route(CLOUD_CONVERT_WEBHOOK_PATH, methods=["POST"])
 def cloud_convert_job_finished() -> Response:
-    pass
+    request = app.current_request
+    logger.info(f"POST {CLOUD_CONVERT_WEBHOOK_PATH}. Body: {request.raw_body}, Headers: {request.headers}")
+
+    try:
+        try:
+            job_status = JobStatusEvent.from_dict(request.json_body)
+        except (BadRequestError, LookupError, AttributeError, JSONDecodeError) as e:
+            logger.warning(f"Request isn't valid JSON denoting a JobStatusEvent: {request.raw_body}")
+            raise ReportableError(message="Unable to parse cloud convert response.", context={"body": request.raw_body})
+
+        result_files = []
+        for task in [job_task for job_task in job_status.job.tasks if job_task.operation == "export/url"]:
+            if task.result and task.result.files:
+                for file in task.result.files:
+                    result_files.append(file)
+
+        if job_status.event == "job.failed":
+            raise ReportableError(
+                message="Cloud convert job failed with an error.", context={"job_id": job_status.job.id}
+            )
+
+        else:
+            logger.info(f"Creating DownloadTasks for {len(result_files)} job result file(s).")
+            for result_file in result_files:
+                file_name = result_file.filename
+                if file_name.endswith(".mp4"):
+                    logger.info("Inserting -noaudio into .mp4 file.")
+                    name, ext = os.path.splitext(file_name)
+                    file_name = f"{name}-noaudio{ext}"
+
+                download_task = DownloadTask(
+                    destination_bucket=os.environ["INPUT_BUCKET_NAME"],
+                    destination_key=f"converted/{file_name}",
+                    job_result_file=result_file
+                )
+                _notify_downloader(queue_url=os.environ["DOWNLOADER_QUEUE_URL"], task=download_task)
+    except ReportableError as e:
+        _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+
+    # always respond success upstream
+    return Responder.respond(payload={})
 
 
 @app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".txt")
@@ -112,7 +154,7 @@ def on_text_input_file(event: S3Event) -> Dict[str, str]:
             download_task = DownloadTask(
                 destination_bucket=event.bucket,
                 destination_key=destination_filename,
-                source=synthesize_speech_response
+                speech_synthesized_response=synthesize_speech_response
             )
             _notify_downloader(queue_url=os.environ["DOWNLOADER_QUEUE_URL"], task=download_task)
 
@@ -203,7 +245,7 @@ def on_conversion_job_message(event: SQSEvent) -> None:
                         download_task = DownloadTask(
                             destination_bucket=job.config.bucket,
                             destination_key=destination_filename,
-                            source=response
+                            speech_synthesized_response=response
                         )
                         _notify_downloader(queue_url=os.environ["DOWNLOADER_QUEUE_URL"], task=download_task)
                 else:
@@ -237,7 +279,7 @@ def on_download_message(event: SQSEvent) -> None:
                 )
             else:
                 s3_client = get_s3_client()
-                _download_speech_file(s3_client=s3_client, task=task)
+                _download_file(s3_client=s3_client, task=task)
 
                 _report_download_success(
                     url=os.environ["WEBHOOK_URL"],
@@ -248,7 +290,7 @@ def on_download_message(event: SQSEvent) -> None:
         _report_error(url=os.environ["WEBHOOK_URL"], error=e)
 
 
-def _download_speech_file(s3_client: BaseClient, task: DownloadTask) -> None:
+def _download_file(s3_client: BaseClient, task: DownloadTask) -> None:
     """
     Downloads the file from the URL wrapped in the given DownloadTask straight into S3. Utilizes the streaming and
     multipart uploads for proper handling of very large files.
@@ -258,7 +300,17 @@ def _download_speech_file(s3_client: BaseClient, task: DownloadTask) -> None:
     """
     bucket_name = task.destination_bucket
     object_key = task.destination_key
-    file_url = task.source.audio_file
+
+    if task.speech_synthesized_response:
+        file_url = task.speech_synthesized_response.audio_file
+    elif task.job_result_file:
+        file_url = task.job_result_file.url
+    else:
+        logger.warning("DownloadTask is empty.")
+        raise ReportableError(
+            message="DownloadTask must wrap at least one downloadable file.",
+            context=task.to_dict()
+        )
 
     logger.info(f"About to store download in S3. Bucket: {bucket_name}, Key: {object_key}, Url: {file_url}")
 
@@ -458,20 +510,20 @@ def _invoke_murfai(text_content: str, config: MurfAIConfig, api_key: str) -> Syn
 
 
 def _invoke_cloud_convert_ensure_webhook(service_url: str, secrets: Secrets) -> None:
-    webhooks_url = f"{os.environ['CLOUD_CONVERT_API_URL']}/v2/webhooks"
+    list_webhooks_url = f"{os.environ['CLOUD_CONVERT_API_URL']}/v2/users/me/webhooks"
     headers = {
         "AUTHORIZATION": f"Bearer {secrets.cloud_conversion_api_key}",
     }
 
-    logger.info(f"About to GET to {webhooks_url}")
+    logger.info(f"About to GET to {list_webhooks_url}")
     try:
-        response = requests.get(url=webhooks_url, headers=headers)
+        response = requests.get(url=list_webhooks_url, headers=headers)
         response.raise_for_status()
     except HTTPError:
         logger.exception("Failed to list cloud convert webhooks.")
         raise ReportableError(
             message="Unable to list webhooks in cloud convert",
-            context={"url": webhooks_url}
+            context={"url": list_webhooks_url}
         )
     else:
         logger.info(f"Response: {response.text}")
@@ -502,10 +554,11 @@ def _invoke_cloud_convert_ensure_webhook(service_url: str, secrets: Secrets) -> 
 
         data = cloud_convert_create_webhook(url=service_url + CLOUD_CONVERT_WEBHOOK_PATH)
 
-        logger.info(f"About to POST to {webhooks_url}, data: {data}")
+        create_webhook_url = f"{os.environ['CLOUD_CONVERT_API_URL']}/v2/webhooks"
+        logger.info(f"About to POST to {create_webhook_url}, data: {data}")
 
         try:
-            response = requests.post(url=webhooks_url, json=data, headers=headers)
+            response = requests.post(url=create_webhook_url, json=data, headers=headers)
             response.raise_for_status()
         except HTTPError:
             logger.exception("Failed to create cloud convert webhook.")
