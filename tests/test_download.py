@@ -177,7 +177,7 @@ def _setup_stubs_success(aws_stubs: AwsStubs, download_task: DownloadTask) -> No
         },
     )
 
-    buffer_size = 1024 * 1024  # 1 MB
+    buffer_size = 10 * 1024 * 1024  # 10 MB
     pwd = os.path.dirname(os.path.realpath(__file__))
     file_size = os.path.getsize(os.path.join(pwd, "sample.mp3"))
 
@@ -225,7 +225,7 @@ def _setup_stubs_upload_part_failed(aws_stubs: AwsStubs, download_task: Download
         },
     )
 
-    buffer_size = 1024 * 1024  # 1 MB
+    buffer_size = 10 * 1024 * 1024  # 10 MB
     pwd = os.path.dirname(os.path.realpath(__file__))
     file_size = os.path.getsize(os.path.join(pwd, "sample.mp3"))
 

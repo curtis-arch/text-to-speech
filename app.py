@@ -72,7 +72,6 @@ def on_mp4_video_input_file(event: S3Event) -> Dict[str, str]:
     return _process_input_video_split_request(event=event)
 
 
-
 @app.route(CLOUD_CONVERT_WEBHOOK_PATH, methods=["POST"])
 def cloud_convert_job_finished() -> Response:
     request = app.current_request
@@ -334,7 +333,7 @@ def _download_file(s3_client: BaseClient, task: DownloadTask) -> None:
 
     logger.info(f"About to store download in S3. Bucket: {bucket_name}, Key: {object_key}, Url: {file_url}")
 
-    buffer_size = 1024 * 1024  # 1 MB
+    buffer_size = 10 * 1024 * 1024  # 10 MB
     buffer = bytearray(buffer_size)
 
     try:
