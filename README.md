@@ -1,7 +1,9 @@
 # text-to-speech (POC)
 
-This repository contains code for two AWS Lambda functions which integrate both
-murf.ai and play.ht and make them available from AWS API Gateway.
+This repository contains code for multiple AWS Lambda functions which integrate:
+- murf.ai and play.ht to convert txt files into speech
+- cloud convert to separate the audio and video track from a video file
+
 
 ## Prerequisites
 
@@ -32,7 +34,7 @@ AWS resources for the project (Lambda, API Gateway, IAM). Note that the S3 bucke
 
 ### Configuration
 
-Lets have a look at the config file, which can be found under `.chalice/config.json`.
+Let's have a look at the config file, which can be found under `.chalice/config.json`.
 
 ```json
 {
@@ -60,7 +62,12 @@ Lets have a look at the config file, which can be found under `.chalice/config.j
       "environment_variables": {
         "STAGE": "test",
         "FEATURE_TOGGLES": "0",
+        "SECRETS_MANAGER_KEY_NAME": "",
         "INPUT_BUCKET_NAME": "",
+        "SERVICE_BASE_URL": "",
+        "CLOUD_CONVERT_API_URL": "",
+        "STATUS_POLLER_QUEUE_URL": "",
+        "DOWNLOADER_QUEUE_URL": "",        
         "WEBHOOK_URL": ""
       }
     }
@@ -70,15 +77,19 @@ Lets have a look at the config file, which can be found under `.chalice/config.j
 
 The following lines are interesting:
 
-| Config Value            | Description                                                                             |
-|-------------------------|-----------------------------------------------------------------------------------------|
-| lambda_memory_size      | Sets the memory in MB for each Lambda function.                                         |
-| lambda_timeout          | Sets a timeout in seconds after which each Lambda function will stop running.           |
-| iam_policy_file         | Denotes a file in the same directory with an IAM policy to be used for the function.    |
-| FEATURE_TOGGLES         | A way to turn features on and off.                                                      |
-| INPUT_BUCKET_NAME       | The name of the bucket, which will later contain the input .txt and .json files.        |
-| STATUS_POLLER_QUEUE_URL | The URL to an SQS queue which will be used for polling the status of a conversion job.  |
-| WEBHOOK_URL             | A URL that we will use to notify when speech has been synthesized or an error occurred. |
+| Config Value             | Description                                                                                                                 |
+|--------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| lambda_memory_size       | Sets the memory in MB for each Lambda function.                                                                             |
+| lambda_timeout           | Sets a timeout in seconds after which each Lambda function will stop running.                                               |
+| iam_policy_file          | Denotes a file in the same directory with an IAM policy to be used for the function.                                        |
+| FEATURE_TOGGLES          | A way to turn features on and off.                                                                                          |
+| SECRETS_MANAGER_KEY_NAME | Contains the name of a secret in AWS Secrets Manager which will contain secrets.                                            |
+| INPUT_BUCKET_NAME        | The name of the bucket, which will later contain the input .txt and .json files.                                            |
+| SERVICE_BASE_URL         | The base URL under which the service can be accessed via API Gateway. This is needed to register webhooks in Cloud Convert. |
+| CLOUD_CONVERT_API_URL    | The base URL for the Cloud Convert API.                                                                                     |
+| STATUS_POLLER_QUEUE_URL  | The URL to an SQS queue which will be used for polling the status of a conversion job.                                      |
+| DOWNLOADER_QUEUE_URL     | The URL to an SQS queue which will be used for downloading files.                                                           |
+| WEBHOOK_URL              | A URL that we will use to notify when speech has been synthesized or an error occurred.                                     |
 
 ### Generating Speech from Text
 
@@ -120,6 +131,18 @@ Another engine that is supported is play.ht. Here is an example:
   }
 }
 ```
+
+### Splitting audio and video tracks
+
+Another AWS Lambda function can be used to split the audio and video track from a video file uploaded into S3.
+The function will trigger when a .mp4, .wmv, .mov or .mkv file is uploaded. 
+
+It will fetch the Cloud Convert api key from AWS Secrets Manager, make sure we have webhooks configured in
+Cloud Convert and finally create a new job, which will split the audio and video tracks.
+
+When the job finishes - or fails - we will receive a notification from Cloud Convert upon which we will 
+download the output files and store them in the `/output` folder in S3. Finally, we will send a notification
+on the configured webhook.
 
 
 ## Deployments
