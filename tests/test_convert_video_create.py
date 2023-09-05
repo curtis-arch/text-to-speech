@@ -53,7 +53,7 @@ def test_create_conversion_success(monkeypatch, requests_mock: Mocker, test_clie
     _setup_mock_success(mocker=requests_mock)
 
     event = test_client.events.generate_s3_event(bucket=bucket_name, key="videos/sample.mp4")
-    response = test_client.lambda_.invoke('on_video_input_file', event)
+    response = test_client.lambda_.invoke('on_mp4_video_input_file', event)
 
     assert response.payload == {'result': 'success'}
 
@@ -83,7 +83,7 @@ def test_create_conversion_success_webhook_exists(monkeypatch, requests_mock: Mo
     )
 
     event = test_client.events.generate_s3_event(bucket=bucket_name, key="videos/sample.mp4")
-    response = test_client.lambda_.invoke('on_video_input_file', event)
+    response = test_client.lambda_.invoke('on_mp4_video_input_file', event)
 
     assert response.payload == {'result': 'success'}
 
@@ -104,7 +104,7 @@ def test_list_webhooks_failed(monkeypatch, requests_mock: Mocker, test_client: C
     _setup_mock_error_list_webhooks(mocker=requests_mock)
 
     event = test_client.events.generate_s3_event(bucket=bucket_name, key="videos/sample.mp4")
-    response = test_client.lambda_.invoke('on_video_input_file', event)
+    response = test_client.lambda_.invoke('on_mp4_video_input_file', event)
 
     assert response.payload == {'result': 'failure'}
 
@@ -129,7 +129,7 @@ def test_create_webhooks_failed(monkeypatch, requests_mock: Mocker, test_client:
     _setup_mock_error_create_webhook(mocker=requests_mock)
 
     event = test_client.events.generate_s3_event(bucket=bucket_name, key="videos/sample.mp4")
-    response = test_client.lambda_.invoke('on_video_input_file', event)
+    response = test_client.lambda_.invoke('on_mp4_video_input_file', event)
 
     assert response.payload == {'result': 'failure'}
 
@@ -154,7 +154,7 @@ def test_create_job_failed(monkeypatch, requests_mock: Mocker, test_client: Clie
     _setup_mock_error_create_job(mocker=requests_mock)
 
     event = test_client.events.generate_s3_event(bucket=bucket_name, key="videos/sample.mp4")
-    response = test_client.lambda_.invoke('on_video_input_file', event)
+    response = test_client.lambda_.invoke('on_mp4_video_input_file', event)
 
     assert response.payload == {'result': 'failure'}
 

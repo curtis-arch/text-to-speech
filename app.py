@@ -52,30 +52,25 @@ class JobNotFinishedError(Exception):
         super().__init__(self.message)
 
 
+@app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".mkv")
+def on_mkv_video_input_file(event: S3Event) -> Dict[str, str]:
+    return _process_input_video_split_request(event=event)
+
+
+@app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".mov")
+def on_mov_video_input_file(event: S3Event) -> Dict[str, str]:
+    return _process_input_video_split_request(event=event)
+
+
+@app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".wmv")
+def on_wmv_video_input_file(event: S3Event) -> Dict[str, str]:
+    return _process_input_video_split_request(event=event)
+
+
 @app.on_s3_event(bucket=os.environ.get("INPUT_BUCKET_NAME"), events=["s3:ObjectCreated:*"], suffix=".mp4")
-def on_video_input_file(event: S3Event) -> Dict[str, str]:
-    """
-    AWS Lambda function which gets triggered by the S3 event that a .mp4 file has been put into a bucket. The function
-    will call a third party API to initiate a task that separates the audio track from the video file. The task will
-    run asynchronously and notify another Lambda function when it completes.
-    :param event: the S3 event
-    :return: Dict
-    """
-    logger.info(f"Received event: {event.to_dict()}")
+def on_mp4_video_input_file(event: S3Event) -> Dict[str, str]:
+    return _process_input_video_split_request(event=event)
 
-    try:
-        secrets = _read_secrets()
-        service_url = os.environ.get("SERVICE_BASE_URL") or "http://localhost"
-        _invoke_cloud_convert_ensure_webhook(service_url=service_url, secrets=secrets)
-
-        job_id = _invoke_cloud_convert_create_job(source_bucket=event.bucket, source_video_file=event.key, secrets=secrets)
-        logger.info(f"Created cloud convert job {job_id}")
-
-        return {"result": "success"}
-    except ReportableError as e:
-        _report_error(url=os.environ["WEBHOOK_URL"], error=e)
-
-    return {"result": "failure"}
 
 
 @app.route(CLOUD_CONVERT_WEBHOOK_PATH, methods=["POST"])
@@ -288,6 +283,31 @@ def on_download_message(event: SQSEvent) -> None:
                 )
     except ReportableError as e:
         _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+
+
+def _process_input_video_split_request(event: S3Event) -> Dict[str, str]:
+    """
+    AWS Lambda function which gets triggered by the S3 event for when a video file has been put into a bucket. The
+    function will call a third party API to initiate a task that separates the audio track from the video file.
+    The task will run asynchronously and notify another Lambda function when it completes.
+    :param event: the S3 event
+    :return: Dict
+    """
+    logger.info(f"Received event: {event.to_dict()}")
+
+    try:
+        secrets = _read_secrets()
+        service_url = os.environ.get("SERVICE_BASE_URL") or "http://localhost"
+        _invoke_cloud_convert_ensure_webhook(service_url=service_url, secrets=secrets)
+
+        job_id = _invoke_cloud_convert_create_job(source_bucket=event.bucket, source_video_file=event.key, secrets=secrets)
+        logger.info(f"Created cloud convert job {job_id}")
+
+        return {"result": "success"}
+    except ReportableError as e:
+        _report_error(url=os.environ["WEBHOOK_URL"], error=e)
+
+    return {"result": "failure"}
 
 
 def _download_file(s3_client: BaseClient, task: DownloadTask) -> None:
