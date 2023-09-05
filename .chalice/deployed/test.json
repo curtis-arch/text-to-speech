@@ -1,21 +1,72 @@
 {
   "resources": [
     {
-      "name": "on_video_input_file_role",
+      "name": "on_mkv_video_input_file_role",
       "resource_type": "iam_role",
-      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_video_input_file",
-      "role_name": "text2speech-test-on_video_input_file"
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_mkv_video_input_file",
+      "role_name": "text2speech-test-on_mkv_video_input_file"
     },
     {
-      "name": "on_video_input_file",
+      "name": "on_mkv_video_input_file",
       "resource_type": "lambda_function",
-      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_video_input_file"
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_mkv_video_input_file"
     },
     {
-      "name": "on_video_input_file-s3event",
+      "name": "on_mkv_video_input_file-s3event",
       "resource_type": "s3_event",
       "bucket": "quotient-text2speech-test-input",
-      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_video_input_file"
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_mkv_video_input_file"
+    },
+    {
+      "name": "on_mov_video_input_file_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_mov_video_input_file",
+      "role_name": "text2speech-test-on_mov_video_input_file"
+    },
+    {
+      "name": "on_mov_video_input_file",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_mov_video_input_file"
+    },
+    {
+      "name": "on_mov_video_input_file-s3event",
+      "resource_type": "s3_event",
+      "bucket": "quotient-text2speech-test-input",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_mov_video_input_file"
+    },
+    {
+      "name": "on_wmv_video_input_file_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_wmv_video_input_file",
+      "role_name": "text2speech-test-on_wmv_video_input_file"
+    },
+    {
+      "name": "on_wmv_video_input_file",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_wmv_video_input_file"
+    },
+    {
+      "name": "on_wmv_video_input_file-s3event",
+      "resource_type": "s3_event",
+      "bucket": "quotient-text2speech-test-input",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_wmv_video_input_file"
+    },
+    {
+      "name": "on_mp4_video_input_file_role",
+      "resource_type": "iam_role",
+      "role_arn": "arn:aws:iam::815805748464:role/text2speech-test-on_mp4_video_input_file",
+      "role_name": "text2speech-test-on_mp4_video_input_file"
+    },
+    {
+      "name": "on_mp4_video_input_file",
+      "resource_type": "lambda_function",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_mp4_video_input_file"
+    },
+    {
+      "name": "on_mp4_video_input_file-s3event",
+      "resource_type": "s3_event",
+      "bucket": "quotient-text2speech-test-input",
+      "lambda_arn": "arn:aws:lambda:us-east-1:815805748464:function:text2speech-test-on_mp4_video_input_file"
     },
     {
       "name": "on_text_input_file_role",

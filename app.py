@@ -333,7 +333,9 @@ def _download_file(s3_client: BaseClient, task: DownloadTask) -> None:
 
     logger.info(f"About to store download in S3. Bucket: {bucket_name}, Key: {object_key}, Url: {file_url}")
 
-    buffer_size = 10 * 1024 * 1024  # 10 MB
+    buffer_size = int(os.environ.get("MULTIPART_UPLOAD_BUFFER_SIZE", str(10 * 1024 * 1024)))  # 10 MB default
+    logger.info(f"Buffer size: {buffer_size}")
+
     buffer = bytearray(buffer_size)
 
     try:
@@ -357,6 +359,7 @@ def _download_file(s3_client: BaseClient, task: DownloadTask) -> None:
 
             for count, chunk in enumerate(response.iter_content(chunk_size=buffer_size)):
                 if chunk:
+                    logger.info(f"Chunk {count}: size {len(chunk)}")
                     buffer[:len(chunk)] = chunk
 
                     part_number = len(parts) + 1

@@ -17,6 +17,7 @@ bucket_name = "another_test_bucket"
 webhook_url = "https://www.blackhole.com"
 status_queue_url = "https://sqs.us-east-1.amazonaws.com/statusQueue"
 download_queue_url = "https://sqs.us-east-1.amazonaws.com/downloadQueue"
+buffer_size_1mb = 1024 * 1024
 
 
 @dataclass_json
@@ -46,6 +47,7 @@ def aws_stubs() -> AwsStubs:
 def test_download_success(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
+    monkeypatch.setenv("MULTIPART_UPLOAD_BUFFER_SIZE", str(buffer_size_1mb))
 
     task = DownloadTask(
         destination_bucket=bucket_name,
@@ -73,6 +75,7 @@ def test_download_success(monkeypatch, requests_mock: Mocker, test_client: Clien
 def test_source_download_failed(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
+    monkeypatch.setenv("MULTIPART_UPLOAD_BUFFER_SIZE", str(buffer_size_1mb))
 
     task = DownloadTask(
         destination_bucket=bucket_name,
@@ -99,6 +102,7 @@ def test_source_download_failed(monkeypatch, requests_mock: Mocker, test_client:
 def test_create_multipart_failed(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
+    monkeypatch.setenv("MULTIPART_UPLOAD_BUFFER_SIZE", str(buffer_size_1mb))
 
     task = DownloadTask(
         destination_bucket=bucket_name,
@@ -127,6 +131,7 @@ def test_create_multipart_failed(monkeypatch, requests_mock: Mocker, test_client
 def test_upload_part_failed(monkeypatch, requests_mock: Mocker, test_client: Client, aws_stubs: AwsStubs):
     monkeypatch.setenv("INPUT_BUCKET_NAME", bucket_name)
     monkeypatch.setenv("WEBHOOK_URL", webhook_url)
+    monkeypatch.setenv("MULTIPART_UPLOAD_BUFFER_SIZE", str(buffer_size_1mb))
 
     task = DownloadTask(
         destination_bucket=bucket_name,
@@ -177,11 +182,10 @@ def _setup_stubs_success(aws_stubs: AwsStubs, download_task: DownloadTask) -> No
         },
     )
 
-    buffer_size = 10 * 1024 * 1024  # 10 MB
     pwd = os.path.dirname(os.path.realpath(__file__))
     file_size = os.path.getsize(os.path.join(pwd, "sample.mp3"))
 
-    chunks = (file_size + buffer_size - 1) // buffer_size
+    chunks = (file_size + buffer_size_1mb - 1) // buffer_size_1mb
 
     for x in range(chunks):
         aws_stubs.s3.add_response(
@@ -225,11 +229,10 @@ def _setup_stubs_upload_part_failed(aws_stubs: AwsStubs, download_task: Download
         },
     )
 
-    buffer_size = 10 * 1024 * 1024  # 10 MB
     pwd = os.path.dirname(os.path.realpath(__file__))
     file_size = os.path.getsize(os.path.join(pwd, "sample.mp3"))
 
-    chunks = (file_size // buffer_size) - 1
+    chunks = (file_size // buffer_size_1mb) - 1
 
     for x in range(chunks):
         aws_stubs.s3.add_response(
